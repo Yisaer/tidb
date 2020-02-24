@@ -849,6 +849,7 @@ func (cc *clientConn) dispatch(ctx context.Context, data []byte) error {
 		cc.ctx.SetProcessInfo("use "+dataStr, t, cmd, 0)
 	}
 
+	// Dispatch 获取网络包并根据 Mysql 协议进行处理。
 	switch cmd {
 	case mysql.ComSleep:
 		// TODO: According to mysql document, this command is supposed to be used only internally.
@@ -857,6 +858,8 @@ func (cc *clientConn) dispatch(ctx context.Context, data []byte) error {
 		return nil
 	case mysql.ComQuit:
 		return io.EOF
+
+		// 主要看 查询语句的处理。
 	case mysql.ComQuery: // Most frequently used command.
 		// For issue 1989
 		// Input payload may end with byte '\0', we didn't find related mysql document about it, but mysql
@@ -1202,6 +1205,8 @@ func (cc *clientConn) handleIndexAdvise(ctx context.Context, indexAdviseInfo *ex
 // There is a special query `load data` that does not return result, which is handled differently.
 // Query `load stats` does not return result either.
 func (cc *clientConn) handleQuery(ctx context.Context, sql string) (err error) {
+
+	//Execute 将 sql 语句经过 AST -> Plan -> 执行器 的顺序获取到 ResultSet 结果集
 	rss, err := cc.ctx.Execute(ctx, sql)
 	if err != nil {
 		metrics.ExecuteErrorCounter.WithLabelValues(metrics.ExecuteErrorToLabel(err)).Inc()
