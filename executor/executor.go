@@ -198,6 +198,8 @@ func newBaseExecutor(ctx sessionctx.Context, schema *expression.Schema, id fmt.S
 // NOTE: Executors must call "chk.Reset()" before appending their results to it.
 type Executor interface {
 	base() *baseExecutor
+
+	// Executor Open 接口是用来干嘛的？
 	Open(context.Context) error
 	Next(ctx context.Context, req *chunk.Chunk) error
 	Close() error
@@ -220,6 +222,7 @@ func Next(ctx context.Context, e Executor, req *chunk.Chunk) error {
 		defer span1.Finish()
 		ctx = opentracing.ContextWithSpan(ctx, span1)
 	}
+	// 执行 insert next
 	return e.Next(ctx, req)
 }
 

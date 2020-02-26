@@ -360,7 +360,7 @@ func (s *Server) Run() error {
 		if err != nil {
 			continue
 		}
-
+		// 进入连接
 		go s.onConn(clientConn)
 	}
 	err := s.listener.Close()
@@ -460,6 +460,7 @@ func (s *Server) onConn(conn *clientConn) {
 	}
 
 	connectedTime := time.Now()
+	// 开始处理查询
 	conn.Run(ctx)
 
 	err = plugin.ForeachPlugin(plugin.Audit, func(p *plugin.Plugin) error {

@@ -412,6 +412,7 @@ func (b *PlanBuilder) Build(ctx context.Context, node ast.Node) (Plan, error) {
 	case *ast.TraceStmt:
 		return b.buildTrace(x)
 	case *ast.InsertStmt:
+		// 创建插入的查询计划
 		return b.buildInsert(ctx, x)
 	case *ast.LoadDataStmt:
 		return b.buildLoadData(ctx, x)
@@ -1852,6 +1853,8 @@ func (b *PlanBuilder) resolveGeneratedColumns(ctx context.Context, columns []*ta
 }
 
 func (b *PlanBuilder) buildInsert(ctx context.Context, insert *ast.InsertStmt) (Plan, error) {
+
+	// 获取插入数据的目标 Schema
 	ts, ok := insert.Table.TableRefs.Left.(*ast.TableSource)
 	if !ok {
 		return nil, infoschema.ErrTableNotExists.GenWithStackByArgs()
@@ -1868,6 +1871,7 @@ func (b *PlanBuilder) buildInsert(ctx context.Context, insert *ast.InsertStmt) (
 		}
 		return nil, err
 	}
+	// 补全 DB Schema 的信息
 	// Build Schema with DBName otherwise ColumnRef with DBName cannot match any Column in Schema.
 	schema, names := expression.TableInfo2SchemaAndNames(b.ctx, tn.Schema, tableInfo)
 	tableInPlan, ok := b.is.TableByID(tableInfo.ID)
@@ -1907,6 +1911,7 @@ func (b *PlanBuilder) buildInsert(ctx context.Context, insert *ast.InsertStmt) (
 		return n
 	}
 
+	// 处理插入值常量
 	if len(insert.Setlist) > 0 {
 		// Branch for `INSERT ... SET ...`.
 		err := b.buildSetValuesOfInsert(ctx, insert, insertPlan, mockTablePlan, checkRefColumn)

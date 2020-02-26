@@ -270,6 +270,7 @@ func runStmt(ctx context.Context, sctx sessionctx.Context, s sqlexec.Statement) 
 	if err != nil {
 		return nil, err
 	}
+	// 执行 exec
 	rs, err = s.Exec(ctx)
 	sessVars.TxnCtx.StatementCount++
 	if !s.IsReadOnly(sessVars) {

@@ -278,6 +278,7 @@ func (a *ExecStmt) RebuildPlan(ctx context.Context) (int64, error) {
 	return is.SchemaMetaVersion(), nil
 }
 
+// 进入执行
 // Exec builds an Executor from a plan. If the Executor doesn't return result,
 // like the INSERT, UPDATE statements, it executes in this function, if the Executor returns
 // result, execution is done after this function returns, in the returned sqlexec.RecordSet Next method.
@@ -323,6 +324,7 @@ func (a *ExecStmt) Exec(ctx context.Context) (_ sqlexec.RecordSet, err error) {
 		sctx.GetSessionVars().StmtCtx.MemTracker.SetBytesLimit(sctx.GetSessionVars().StmtCtx.MemQuotaQuery)
 	}
 
+	// 构造 executor
 	e, err := a.buildExecutor()
 	if err != nil {
 		return nil, err
@@ -360,6 +362,7 @@ func (a *ExecStmt) Exec(ctx context.Context) (_ sqlexec.RecordSet, err error) {
 		return a.handlePessimisticSelectForUpdate(ctx, e)
 	}
 
+	// 不需要返回结果的查询， 如 insert
 	if handled, result, err := a.handleNoDelay(ctx, e, isPessimistic); handled {
 		return result, err
 	}
@@ -512,7 +515,7 @@ func (a *ExecStmt) handleNoDelayExecutor(ctx context.Context, e Executor) (sqlex
 		terror.Log(e.Close())
 		a.logAudit()
 	}()
-
+	// 执行 next
 	err = Next(ctx, e, newFirstChunk(e))
 	if err != nil {
 		return nil, err

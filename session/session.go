@@ -663,6 +663,7 @@ func (s *session) retry(ctx context.Context, maxCnt uint) (err error) {
 					zap.Uint("retryCnt", retryCnt),
 					zap.Int("queryNum", i))
 			}
+			// 进入执行
 			_, err = st.Exec(ctx)
 			if err != nil {
 				s.StmtRollback()
@@ -1032,6 +1033,7 @@ func (s *session) executeStatement(ctx context.Context, connID uint64, stmtNode 
 	}
 	logStmt(stmtNode, s.sessionVars)
 	startTime := time.Now()
+	// 执行 stmt
 	recordSet, err := runStmt(ctx, s, stmt)
 	if err != nil {
 		if !kv.ErrKeyExists.Equal(err) {
@@ -1089,6 +1091,7 @@ func (s *session) execute(ctx context.Context, sql string) (recordSets []sqlexec
 
 	// Step1: Compile query string to abstract syntax trees(ASTs).
 	parseStartTime := time.Now()
+	// 将sql 转化为 ast 树
 	stmtNodes, warns, err := s.ParseSQL(ctx, sql, charsetInfo, collation)
 	if err != nil {
 		s.rollbackOnError(ctx)
@@ -1117,6 +1120,7 @@ func (s *session) execute(ctx context.Context, sql string) (recordSets []sqlexec
 		if err := executor.ResetContextOfStmt(s, stmtNode); err != nil {
 			return nil, err
 		}
+		// 将 ast 进行验证变化，优化，设置查询计划
 		stmt, err := compiler.Compile(ctx, stmtNode)
 		if err != nil {
 			s.rollbackOnError(ctx)
@@ -1134,7 +1138,7 @@ func (s *session) execute(ctx context.Context, sql string) (recordSets []sqlexec
 		}
 		s.currentPlan = stmt.Plan
 
-		// Step3: Execute the physical plan.
+		// Step3: Execute the physical plan. 使用执行器来处理查询计划
 		if recordSets, err = s.executeStatement(ctx, connID, stmtNode, stmt, recordSets, multiQuery); err != nil {
 			return nil, err
 		}

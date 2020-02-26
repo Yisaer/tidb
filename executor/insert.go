@@ -248,6 +248,7 @@ func (e *InsertExec) batchUpdateDupRows(ctx context.Context, newRows [][]types.D
 }
 
 // Next implements the Executor Next interface.
+// 执行 Insert Next
 func (e *InsertExec) Next(ctx context.Context, req *chunk.Chunk) error {
 	req.Reset()
 	if len(e.children) > 0 && e.children[0] != nil {

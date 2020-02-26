@@ -134,6 +134,7 @@ func (b *executorBuilder) build(p plannercore.Plan) Executor {
 	case *plannercore.BatchPointGetPlan:
 		return b.buildBatchPointGet(v)
 	case *plannercore.Insert:
+		// 构造 insert 的 executor
 		return b.buildInsert(v)
 	case *plannercore.LoadData:
 		return b.buildLoadData(v)

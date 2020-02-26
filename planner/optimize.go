@@ -35,6 +35,7 @@ import (
 	"github.com/pingcap/tidb/util/logutil"
 )
 
+// 创建并优化查询计划
 // Optimize does optimization and creates a Plan.
 // The node must be prepared first.
 func Optimize(ctx context.Context, sctx sessionctx.Context, node ast.Node, is infoschema.InfoSchema) (plannercore.Plan, types.NameSlice, error) {
