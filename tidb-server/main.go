@@ -240,10 +240,16 @@ func checkTempStorageQuota() {
 	if c.TempStorageQuota < 0 {
 		// means unlimited, do nothing
 	} else {
-		capacityByte, err := storageSys.GetTargetDirectoryCapacity(c.TempStoragePath)
-		if err != nil {
-			log.Fatal(err.Error())
-		} else if capacityByte < uint64(c.TempStorageQuota) {
+		var err error
+		capacityByte := c.TempStorageCapacity
+		// when TempStorageCapacity < 1, we would query the volume capacity via system api
+		if capacityByte < 1 {
+			capacityByte, err = storageSys.GetTargetDirectoryCapacity(c.TempStoragePath)
+			if err != nil {
+				log.Fatal(err.Error())
+			}
+		}
+		if capacityByte < uint64(c.TempStorageQuota) {
 			log.Fatal(fmt.Sprintf("value of [tmp-storage-quota](%d byte) exceeds the capacity(%d byte) of the [%s] directory", c.TempStorageQuota, capacityByte, c.TempStoragePath))
 		}
 	}

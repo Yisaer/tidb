@@ -85,10 +85,13 @@ type Config struct {
 	MemQuotaQuery    int64  `toml:"mem-quota-query" json:"mem-quota-query"`
 	// TempStorageQuota describe the temporary storage Quota during query exector when OOMUseTmpStorage is enabled
 	// If the quota exceed the capacity of the TempStoragePath, the tidb-server would exit with fatal error
-	TempStorageQuota int64           `toml:"tmp-storage-quota" json:"tmp-storage-quota"` // Bytes
-	EnableStreaming  bool            `toml:"enable-streaming" json:"enable-streaming"`
-	EnableBatchDML   bool            `toml:"enable-batch-dml" json:"enable-batch-dml"`
-	TxnLocalLatches  TxnLocalLatches `toml:"-" json:"-"`
+	TempStorageQuota int64 `toml:"tmp-storage-quota" json:"tmp-storage-quota"` // Bytes
+	// TempStorageCapacity allows user to manually define the capacity for the tidb temp stroage. It is useful
+	// when multi tidb-server deployed in a single node and sharing the same volume like container or Kubernetes
+	TempStorageCapacity uint64          `toml:"tmp-storage-capacity" json:"tmp-storage-capacity"` // Bytes
+	EnableStreaming     bool            `toml:"enable-streaming" json:"enable-streaming"`
+	EnableBatchDML      bool            `toml:"enable-batch-dml" json:"enable-batch-dml"`
+	TxnLocalLatches     TxnLocalLatches `toml:"-" json:"-"`
 	// Set sys variable lower-case-table-names, ref: https://dev.mysql.com/doc/refman/5.7/en/identifier-case-sensitivity.html.
 	// TODO: We actually only support mode 2, which keeps the original case, but the comparison is case-insensitive.
 	LowerCaseTableNames int               `toml:"lower-case-table-names" json:"lower-case-table-names"`
@@ -539,6 +542,7 @@ var defaultConf = Config{
 	TokenLimit:                   1000,
 	OOMUseTmpStorage:             true,
 	TempStorageQuota:             -1,
+	TempStorageCapacity:          0,
 	TempStoragePath:              tempStorageDirName,
 	OOMAction:                    OOMActionCancel,
 	MemQuotaQuery:                1 << 30,
