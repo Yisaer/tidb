@@ -736,15 +736,6 @@ func (t *TableCommon) AddRecord(sctx sessionctx.Context, r []types.Datum, opts .
 	if sessVars.TxnCtx == nil {
 		return recordID, nil
 	}
-	colSize := make(map[int64]int64, len(r))
-	for id, col := range t.Cols() {
-		size, err := codec.EstimateValueSize(sc, r[id])
-		if err != nil {
-			continue
-		}
-		colSize[col.ID] = int64(size) - 1
-	}
-	sessVars.TxnCtx.UpdateDeltaForTable(t.physicalTableID, 1, 1, colSize)
 	return recordID, nil
 }
 
