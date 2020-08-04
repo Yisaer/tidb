@@ -20,6 +20,7 @@ import (
 	"math"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/pingcap/errors"
 	"github.com/pingcap/parser/model"
@@ -27,6 +28,7 @@ import (
 	"github.com/pingcap/tidb/ddl/util"
 	"github.com/pingcap/tidb/kv"
 	"github.com/pingcap/tidb/sessionctx"
+	"github.com/pingcap/tidb/store/tikv/oracle"
 	"github.com/pingcap/tidb/tablecodec"
 	"github.com/pingcap/tidb/util/logutil"
 	"github.com/pingcap/tidb/util/sqlexec"
@@ -275,6 +277,7 @@ func insertJobIntoDeleteRangeTable(ctx sessionctx.Context, job *model.Job) error
 		if err := job.DecodeArgs(&startKey, &physicalTableIDs); err != nil {
 			return errors.Trace(err)
 		}
+		now += oracle.EncodeTSO(int64(3 * 24 * time.Hour / time.Millisecond))
 		if len(physicalTableIDs) > 0 {
 			for _, pid := range physicalTableIDs {
 				startKey = tablecodec.EncodeTablePrefix(pid)
