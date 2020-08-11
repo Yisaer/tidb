@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -46,7 +47,7 @@ func equalRegionStartKey(key, regionStartKey []byte) bool {
 	return bytes.Equal(key, regionStartKey)
 }
 
-func (s *tikvStore) splitBatchRegionsReq(ctx context.Context, bo *Backoffer, keys [][]byte, scatter bool) (*tikvrpc.Response, error) {
+func (s *tikvStore) splitBatchRegionsReq(ctx context.Context, bo *Backoffer, keys [][]byte, scatter bool, once *sync.Once) (*tikvrpc.Response, error) {
 	// equalRegionStartKey is used to filter split keys.
 	// If the split key is equal to the start key of the region, then the key has been split, we need to skip the split key.
 	groups, _, err := s.regionCache.GroupKeysByRegion(bo, keys, equalRegionStartKey)
@@ -71,7 +72,7 @@ func (s *tikvStore) splitBatchRegionsReq(ctx context.Context, bo *Backoffer, key
 			zap.Stringer("first split key", kv.Key(batches[0].keys[0])))
 	}
 	if len(batches) == 1 {
-		resp := s.batchSendSingleRegion(ctx, bo, batches[0], scatter)
+		resp := s.batchSendSingleRegion(ctx, bo, batches[0], scatter, once)
 		return resp.resp, errors.Trace(resp.err)
 	}
 	ch := make(chan singleBatchResp, len(batches))
@@ -82,7 +83,7 @@ func (s *tikvStore) splitBatchRegionsReq(ctx context.Context, bo *Backoffer, key
 
 			util.WithRecovery(func() {
 				select {
-				case ch <- s.batchSendSingleRegion(ctx, backoffer, b, scatter):
+				case ch <- s.batchSendSingleRegion(ctx, backoffer, b, scatter, once):
 				case <-bo.ctx.Done():
 					ch <- singleBatchResp{err: bo.ctx.Err()}
 				}
@@ -114,7 +115,7 @@ func (s *tikvStore) splitBatchRegionsReq(ctx context.Context, bo *Backoffer, key
 	return &tikvrpc.Response{Resp: srResp}, errors.Trace(err)
 }
 
-func (s *tikvStore) batchSendSingleRegion(ctx context.Context, bo *Backoffer, batch batch, scatter bool) singleBatchResp {
+func (s *tikvStore) batchSendSingleRegion(ctx context.Context, bo *Backoffer, batch batch, scatter bool, once *sync.Once) singleBatchResp {
 	failpoint.Inject("MockSplitRegionTimeout", func(val failpoint.Value) {
 		if val.(bool) {
 			if _, ok := bo.ctx.Deadline(); ok {
@@ -123,21 +124,29 @@ func (s *tikvStore) batchSendSingleRegion(ctx context.Context, bo *Backoffer, ba
 		}
 	})
 
-	for {
-		select {
-		case <-ctx.Done():
-			batchResp := singleBatchResp{}
-			batchResp.err = errors.Trace(errors.New("split table check timeout"))
-			return batchResp
-		default:
+	timeout := false
+	once.Do(func() {
+		for {
+			select {
+			case <-ctx.Done():
+				timeout = true
+				return
+			default:
+			}
+			logutil.BgLogger().Info("split table check once", zap.Uint64("regionID", batch.regionID.id))
+			pass, err := s.checkRegionBeforeSplitSingleRegion(batch)
+			if err != nil || !pass {
+				time.Sleep(500 * time.Millisecond)
+				continue
+			}
+			logutil.BgLogger().Info("split table single region check pass", zap.Uint64("regionID", batch.regionID.id))
+			return
 		}
-		pass, err := s.checkRegionBeforeSplitSingleRegion(batch)
-		if err != nil || !pass {
-			time.Sleep(500 * time.Millisecond)
-			continue
-		}
-		logutil.BgLogger().Info("split table single region check pass", zap.Uint64("regionID", batch.regionID.id))
-		break
+	})
+	if timeout {
+		batchResp := singleBatchResp{}
+		batchResp.err = errors.Trace(errors.New("split table check timeout"))
+		return batchResp
 	}
 
 	req := tikvrpc.NewRequest(tikvrpc.CmdSplitRegion, &kvrpcpb.SplitRegionRequest{
@@ -151,21 +160,24 @@ func (s *tikvStore) batchSendSingleRegion(ctx context.Context, bo *Backoffer, ba
 
 	batchResp := singleBatchResp{resp: resp}
 	if err != nil {
+		logutil.BgLogger().Error("split table sendReq error", zap.Error(err))
 		batchResp.err = errors.Trace(err)
 		return batchResp
 	}
 	regionErr, err := resp.GetRegionError()
 	if err != nil {
+		logutil.BgLogger().Error("split table GetRegionError", zap.Error(err))
 		batchResp.err = errors.Trace(err)
 		return batchResp
 	}
 	if regionErr != nil {
+		logutil.BgLogger().Error("split table GetRegionError", zap.Error(err))
 		err := bo.Backoff(BoRegionMiss, errors.New(regionErr.String()))
 		if err != nil {
 			batchResp.err = errors.Trace(err)
 			return batchResp
 		}
-		resp, err = s.splitBatchRegionsReq(ctx, bo, batch.keys, scatter)
+		resp, err = s.splitBatchRegionsReq(ctx, bo, batch.keys, scatter, once)
 		batchResp.resp = resp
 		batchResp.err = err
 		return batchResp
@@ -270,7 +282,9 @@ func (s *tikvStore) checkRegionBeforeSplitSingleRegion(batch batch) (bool, error
 // SplitRegions splits regions by splitKeys.
 func (s *tikvStore) SplitRegions(ctx context.Context, splitKeys [][]byte, scatter bool) (regionIDs []uint64, err error) {
 	bo := NewBackofferWithVars(ctx, int(math.Min(float64(len(splitKeys))*splitRegionBackoff, maxSplitRegionsBackoff)), nil)
-	resp, err := s.splitBatchRegionsReq(ctx, bo, splitKeys, scatter)
+	once := &sync.Once{}
+	logutil.BgLogger().Info("Split Regions")
+	resp, err := s.splitBatchRegionsReq(ctx, bo, splitKeys, scatter, once)
 	regionIDs = make([]uint64, 0, len(splitKeys))
 	if resp != nil && resp.Resp != nil {
 		spResp := resp.Resp.(*kvrpcpb.SplitRegionResponse)
