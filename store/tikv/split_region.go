@@ -126,6 +126,7 @@ func (s *tikvStore) batchSendSingleRegion(ctx context.Context, bo *Backoffer, ba
 
 	timeout := false
 	once.Do(func() {
+		logutil.BgLogger().Info("split table check once", zap.Uint64("regionID", batch.regionID.id))
 		for {
 			select {
 			case <-ctx.Done():
@@ -133,7 +134,6 @@ func (s *tikvStore) batchSendSingleRegion(ctx context.Context, bo *Backoffer, ba
 				return
 			default:
 			}
-			logutil.BgLogger().Info("split table check once", zap.Uint64("regionID", batch.regionID.id))
 			pass, err := s.checkRegionBeforeSplitSingleRegion(batch)
 			if err != nil || !pass {
 				time.Sleep(500 * time.Millisecond)
