@@ -53,6 +53,7 @@ func (s *testSuite1) TestSelectIntoFileExists(c *C) {
 func (s *testSuite1) TestSelectIntoOutfileTypes(c *C) {
 	tmpDir := os.TempDir()
 	outfile := filepath.Join(tmpDir, "select-into-outfile.data")
+	defer os.Remove(outfile)
 	tk := testkit.NewTestKit(c, s.store)
 	tk.MustExec("use test")
 
