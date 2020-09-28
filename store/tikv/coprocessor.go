@@ -48,6 +48,10 @@ import (
 var tikvTxnRegionsNumHistogramWithCoprocessor = metrics.TiKVTxnRegionsNumHistogram.WithLabelValues("coprocessor")
 var tikvTxnRegionsNumHistogramWithBatchCoprocessor = metrics.TiKVTxnRegionsNumHistogram.WithLabelValues("batch_coprocessor")
 
+const (
+	occupiedMem = 96 * 1024 * 1024
+)
+
 // CopClient is coprocessor client.
 type CopClient struct {
 	kv.RequestTypeSupportedChecker
@@ -510,6 +514,10 @@ const minLogCopTaskTime = 300 * time.Millisecond
 func (worker *copIteratorWorker) run(ctx context.Context) {
 	defer worker.wg.Done()
 	for task := range worker.taskCh {
+		// allocator occupied memory
+		worker.memTracker.Consume(occupiedMem)
+		worker.actionOnExceed.waitIfNeeded()
+
 		respCh := worker.respChan
 		if respCh == nil {
 			respCh = task.respChan
@@ -520,7 +528,7 @@ func (worker *copIteratorWorker) run(ctx context.Context) {
 		worker.actionOnExceed.destroyTokenIfNeeded(func() {
 			worker.sendRate.putToken()
 		})
-		worker.actionOnExceed.waitIfNeeded()
+		//worker.actionOnExceed.waitIfNeeded()
 		if worker.vars != nil && worker.vars.Killed != nil && atomic.LoadUint32(worker.vars.Killed) == 1 {
 			return
 		}
@@ -654,7 +662,7 @@ func (worker *copIteratorWorker) sendToRespCh(resp *copResponse, respCh chan<- *
 				consumed = 100
 			}
 		})
-		worker.memTracker.Consume(consumed)
+		worker.memTracker.Consume(consumed - occupiedMem)
 	}
 	select {
 	case respCh <- resp:
