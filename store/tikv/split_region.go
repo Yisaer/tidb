@@ -254,7 +254,7 @@ func (s *KVStore) preSplitRegion(ctx context.Context, group groupedMutations) bo
 		return false
 	}
 
-	regionIDs, err := s.SplitRegions(ctx, splitKeys, true, nil)
+	regionIDs, err := s.SplitRegions(ctx, splitKeys, false, nil)
 	if err != nil {
 		logutil.BgLogger().Warn("2PC split regions failed", zap.Uint64("regionID", group.region.id),
 			zap.Int("keys count", keysLength), zap.Error(err))
