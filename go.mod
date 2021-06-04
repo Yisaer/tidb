@@ -49,7 +49,7 @@ require (
 	github.com/pingcap/fn v0.0.0-20200306044125-d5540d389059
 	github.com/pingcap/goleveldb v0.0.0-20191226122134-f82aafb29989
 	github.com/pingcap/kvproto v0.0.0-20210308063835-39b884695fb8
-	github.com/pingcap/log v0.0.0-20201112100606-8f1e84a3abc8
+	github.com/pingcap/log v0.0.0-20210317133921-96f4fcab92a4
 	github.com/pingcap/parser v0.0.0-20210325072920-0d17053a8a69
 	github.com/pingcap/sysutil v0.0.0-20210221112134-a07bda3bde99
 	github.com/pingcap/tidb-tools v4.0.9-0.20201127090955-2707c97b3853+incompatible
@@ -92,5 +92,7 @@ require (
 	sourcegraph.com/sourcegraph/appdash v0.0.0-20190731080439-ebfcffb1b5c0
 	sourcegraph.com/sourcegraph/appdash-data v0.0.0-20151005221446-73f23eafcf67
 )
+
+replace github.com/tikv/pd => github.com/yisaer/pd v1.1.0-beta.0.20210604124350-ea0a9b5fcc20
 
 go 1.13
