@@ -15,6 +15,8 @@ package distsql
 
 import (
 	"fmt"
+	"github.com/pingcap/log"
+	"go.uber.org/zap"
 	"math"
 	"sort"
 
@@ -70,6 +72,10 @@ func (builder *RequestBuilder) Build() (*kv.Request, error) {
 	if err != nil {
 		builder.err = err
 	}
+	log.Info("requestBuilder build",
+		zap.String("txnScope", builder.TxnScope),
+		zap.Bool("isStaleness", builder.IsStaleness),
+		zap.Uint64("startTS", builder.StartTs))
 	return &builder.Request, builder.err
 }
 

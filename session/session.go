@@ -22,6 +22,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/pingcap/log"
 	"net"
 	"runtime/trace"
 	"strconv"
@@ -2076,6 +2077,7 @@ func (s *session) NewStaleTxnWithStartTS(ctx context.Context, startTS uint64) er
 	if err != nil {
 		return errors.Trace(err)
 	}
+	log.Info("NewStaleTxnWithStartTS", zap.String("txnScope", txnScope), zap.Uint64("startTS", startTS))
 	s.sessionVars.TxnCtx = &variable.TransactionContext{
 		InfoSchema:  is,
 		CreateTime:  time.Now(),
